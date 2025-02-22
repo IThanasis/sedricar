@@ -1,0 +1,35 @@
+name: Export Azure Resources and Push to GitHub
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Runs every day at 12:00 UTC (adjust as needed)
+  workflow_dispatch: # Enables manual triggering
+
+jobs:
+  export-and-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Export Azure Container App Configuration
+        run: |
+          az containerapp show --name sedricar-container-app-name --resource-group sedricar-resource-group --output yaml > containerapp-config.yaml
+          az group export --name sedricar-resource-group --resource-group sedricar-resource-group > exported-template.json
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Commit and push if changes
+        run: |
+          git add .
+          git diff --cached --quiet || git commit -m "Auto-update Azure export files"
+          git push
